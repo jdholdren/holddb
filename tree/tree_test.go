@@ -206,3 +206,39 @@ func TestInsert_SplitsNodeMore(t *testing.T) {
 	}
 	assert.Equal(t, wanted, tree)
 }
+
+func TestGet_ReturnsValueWhenPresent(t *testing.T) {
+	tree := New()
+
+	tree.Insert([]byte("foobar"), "myval")
+	tree.Insert([]byte("foobaz"), "myval2")
+	tree.Insert([]byte("foobaar"), "myval3")
+
+	val, found := tree.Get([]byte("foobar"))
+	assert.True(t, found)
+	assert.Equal(t, "myval", val)
+}
+
+func TestGet_ReturnsNotFoundForMissingKey(t *testing.T) {
+	tree := New()
+
+	tree.Insert([]byte("foobar"), "myval")
+	tree.Insert([]byte("foobaz"), "myval2")
+	tree.Insert([]byte("foobaar"), "myval3")
+
+	val, found := tree.Get([]byte("foobaze"))
+	assert.False(t, found)
+	assert.Nil(t, val)
+}
+
+func TestGet_ReturnsNotFoundForNonLeafNodes(t *testing.T) {
+	tree := New()
+
+	tree.Insert([]byte("foobar"), "myval")
+	tree.Insert([]byte("foobaz"), "myval2")
+	tree.Insert([]byte("foobaar"), "myval3")
+
+	val, found := tree.Get([]byte("fooba"))
+	assert.False(t, found)
+	assert.Nil(t, val)
+}

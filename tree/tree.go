@@ -5,6 +5,25 @@ import (
 	"sort"
 )
 
+// Determines what two byte slices have in common
+func inCommon(a, b []byte) []byte {
+	c := []byte{}
+
+	// We need to compare each one byte by byte to determine what the have in common.
+	//
+	// We can loop over either one, just check that we're not going out of bounds on the
+	// other
+	for i := range a {
+		if i >= len(b) || a[i] != b[i] {
+			break
+		}
+
+		c = append(c, a[i])
+	}
+
+	return c
+}
+
 type node struct {
 	// The prefix compressed into this node
 	prefix []byte
@@ -114,7 +133,7 @@ func (t *Tree) Insert(key []byte, val interface{}) {
 	}
 
 	// Find what we have in common
-	cp := commonPrefix(remaining, farthest.prefix)
+	cp := inCommon(remaining, farthest.prefix)
 	// Find out what's different
 	leafPrefix := remaining[len(cp):len(remaining)]
 	oldPrefix := farthest.prefix[len(cp):len(farthest.prefix)]
@@ -164,27 +183,28 @@ func (t *Tree) Insert(key []byte, val interface{}) {
 		label: cp[0],
 		node:  splitNode,
 	}
-
-	// panic(string(splitNode.prefix))
 }
 
-// Det
-func commonPrefix(a, b []byte) []byte {
-	c := []byte{}
+// Get grabs the value of the key, or returns false in the second value
+// if a leaf could not be found at a matching node
+func (t *Tree) Get(key []byte) (interface{}, bool) {
+	// Go along as far as possible
+	nodes := t.longestPath(key)
 
-	// We need to compare each one byte by byte to determine what the have in common.
-	//
-	// We can loop over either one, just check that we're not going out of bounds on the
-	// other
-	for i := range a {
-		if i >= len(b) || a[i] != b[i] {
-			break
-		}
-
-		c = append(c, a[i])
+	// Check against the farthest node
+	farthest := nodes[len(nodes)-1]
+	if farthest.leaf == nil {
+		// No leaf found at the farthest node
+		return nil, false
 	}
 
-	return c
+	if farthest.leaf.key != string(key) {
+		// The key did not match at what we did find
+		return nil, false
+	}
+
+	// We had a leaf at the farthest node and our key matched its
+	return farthest.leaf.value, true
 }
 
 // Returns a path of nodes that match the key the longest
@@ -202,6 +222,15 @@ func (t *Tree) longestPath(key []byte) []*node {
 		// Mark this node as traversed
 		trav = append(trav, n)
 
+		// Check that the next node contains part of our key
+		if !bytes.Contains(p, n.prefix) {
+			// Stop traversal: the next node that could match does not, but the closest that we have
+			break
+		}
+
+		// Lop off the prefix that we've traversed
+		p = p[len(n.prefix):len(p)]
+
 		// If there's no prefix left, we're done
 		if len(p) == 0 {
 			break
@@ -216,9 +245,6 @@ func (t *Tree) longestPath(key []byte) []*node {
 
 		// Set the next node to the one we found
 		n = e.node
-
-		// Lop off the prefix that we've traversed
-		p = p[len(e.node.prefix):len(p)]
 	}
 
 	return trav
